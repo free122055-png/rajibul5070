@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string
+    //   - phone: string
+    //   - balance: number (required)
+    //   - referralCode: string
+    //   - referredBy: string
+    //   - role: string (required, 'admin' or 'user')
+    //   - createdAt: string (date-time format)
+    //   - kycStatus: string ('pending', 'approved', 'rejected', 'not_submitted')
+    //   - twoFactorEnabled: bool
+    //
+    // Collection: plans
+    // Document ID: planId
+    // Fields:
+    //   - name: string (required)
+    //   - price: number (required)
+    //   - dailyIncome: number (required)
+    //   - duration: number (required)
+    //   - totalReturn: number (required)
+    //
+    // Collection: investments
+    // Document ID: investmentId
+    // Fields:
+    //   - userId: string (required)
+    //   - planId: string (required)
+    //   - amount: number (required)
+    //   - status: string (required, 'active', 'completed')
+    //
+    // Collection: transactions
+    // Document ID: transactionId
+    // Fields:
+    //   - userId: string (required)
+    //   - type: string (required)
+    //   - amount: number (required)
+    //   - status: string (required)
+    //   - createdAt: string (required)
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         request.auth.token.email == "fahimbillha70@gmail.com"); // User email as bootstrapped admin
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'balance', 'role']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.balance is number &&
+             data.role in ['admin', 'user'];
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['userId', 'type', 'amount', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['deposit', 'withdraw', 'income', 'bonus', 'investment'] &&
+             data.amount is number &&
+             data.status in ['pending', 'approved', 'rejected', 'completed'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && userId == request.auth.uid && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if (isOwner(userId) && 
+                       request.resource.data.role == resource.data.role && 
+                       request.resource.data.balance == resource.data.balance) || isAdmin();
+    }
+
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /investments/{investmentId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+      allow update: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile data including balance and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "phone": { "type": "string" },
+        "balance": { "type": "number" },
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "kycStatus": { "type": "string", "enum": ["pending", "approved", "rejected", "not_submitted"] },
+        "twoFactorEnabled": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "balance", "role"]
+    },
+    "InvestmentPlan": {
+      "title": "InvestmentPlan",
+      "description": "Available investment plans",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "dailyIncome": { "type": "number" },
+        "duration": { "type": "number" },
+        "totalReturn": { "type": "number" }
+      },
+      "required": ["name", "price", "dailyIncome", "duration", "totalReturn"]
+    },
+    "Investment": {
+      "title": "Investment",
+      "description": "Active user investments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "amount": { "type": "number" },
+        "dailyIncome": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "lastClaimDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "completed"] }
+      },
+      "required": ["userId", "planId", "amount", "status"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transactions (deposits, withdraws, etc.)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "withdraw", "income", "bonus", "investment"] },
+        "amount": { "type": "number" },
+        "method": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amount", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Store individual user profile details"
+    },
+    "/plans/{planId}": {
+      "schema": "InvestmentPlan",
+      "description": "Store investment plans created by admin"
+    },
+    "/investments/{investmentId}": {
+      "schema": "Investment",
+      "description": "Store user active investments"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Store all transactions"
+    }
+  }
+}
